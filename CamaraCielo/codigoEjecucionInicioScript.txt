@@ -1,0 +1,16 @@
+
+https://raspberrypi.stackexchange.com/questions/8734/execute-script-on-start-up
+
+If you want a script to run when you boot into the LXDE environment, you could take a look at this Raspberry Pi forum post:
+
+Navigate to ~/.config/lxsession/LXDE-pi
+
+Open the autostart file in that folder:
+
+$ sudo nano autostart
+Add @midori on a new line. If you want to run something like a python script, put something like @python mypython.py on a new line. Running a script file would be @./superscript, but for some reason the script runs in an infinite loop (perhaps this will stop that).
+
+Save and exit: Ctrl+X, Y, Enter
+
+Restart your Raspberry Pi into the LXDE environment.
+

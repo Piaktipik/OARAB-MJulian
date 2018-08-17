@@ -1,0 +1,4 @@
+
+1. comando para inicio de captura de video vlc - EasyCAP:
+
+vlc v4l2:///dev/video1 :v4l2-standard= :live-caching=3000
