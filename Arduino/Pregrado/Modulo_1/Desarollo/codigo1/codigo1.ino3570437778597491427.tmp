@@ -1,0 +1,229 @@
+const byte u1 = 30;   // pin ultrasonido 1
+const byte u2 = 28;   // pin ultrasonido 2
+const byte u3 = 26;  // pin ultrasonido 3                                              
+
+unsigned long d1,d2,d3;
+int di1,di2,di3;
+bool mu1 = false,mu2 = false,mu3 = false;
+
+// ----- encoder 1 -----
+int ca1 = 0;  int cb1 = 0;
+int pinA1 = 40;
+int pinB1 = 42;
+int est_enc1 = 0;
+long pas_tot1 = 0;
+// ----- encoder 2 -----
+int ca2 = 0;  int cb2 = 0;
+int pinA2 = 44;
+int pinB2 = 46;
+int est_enc2 = 0;
+long pas_tot2 = 0;
+
+#include <Servo.h> 
+Servo myservo;  // create servo object to control a servo 
+                // twelve servo objects can be created on most boards
+ 
+int pos = 0;    // variable to store the servo position 
+ 
+// ------------------------------------------------------ motores y actuadores ------------------------------------------------------ 
+// ----------- conexion motores ----------- 
+// ----- motores ----- 
+// motor izquierdo - m2
+const byte pin_dire_moto_izqu = 4;
+const byte pin_velo_moto_izqu = 5;
+
+// motor derecho - m1
+const byte pin_dire_moto_dere = 7;  
+const byte pin_velo_moto_dere = 6;
+
+// varialbles que contiene la velocidad de los motores cargadas al llamar las funciones de movimiento
+byte velo_moto_izqu = 150; // izquierdo
+byte velo_moto_dere = 150; // derecho
+
+byte velo_esta = 70;      // velocidad entandar de el desplazamiento
+byte valo_ajus_velo = 5;  // valor de ajuste -> se le suma al motor derecho
+
+
+
+void setup() {
+  // initialize serial communication:
+  Serial.begin(115200);
+  Serial1.begin(115200);
+  // apago ventilador
+  pinMode(53,OUTPUT);
+  digitalWrite(53,0);
+  
+  // ----------------- motores ----------------- 
+  // se declaran como salidas
+  pinMode(pin_dire_moto_dere,OUTPUT);
+  pinMode(pin_velo_moto_dere,OUTPUT);
+  pinMode(pin_dire_moto_izqu,OUTPUT); 
+  pinMode(pin_velo_moto_izqu,OUTPUT);
+  
+  myservo.attach(8);  // attaches the servo on pin 9 to the servo object 
+  
+  activarEncoder1(pinA1,pinB1);
+  
+  parar(); // inicializo el robot quieto
+}
+
+void loop(){
+  delay(100);
+    Serial.print("Ca1= " + String(ca1));
+    Serial.print(" , Cb1= " + String(cb1));
+    Serial.print(" , Est_enc1= " + String(est_enc1));
+    Serial.print(" , pas_tot1= " + String(pas_tot1));
+    Serial.print("\t");
+    
+  
+   for(pos = 20; pos <= 180; pos += 1) // goes from 0 degrees to 180 degrees 
+  {                                  // in steps of 1 degree 
+    myservo.write(pos);              // tell servo to go to position in variable 'pos' 
+    srf05_1();
+    srf05_2();
+    srf05_3();
+    delay(50);
+    Serial.print("di1 = ");
+    Serial.print(di1);
+    Serial.print("\t di2 = ");
+    Serial.print(di2);
+    Serial.print("\t di3 = ");
+    Serial.print(di3);
+    Serial.println(); 
+    // recivo comandos por serial
+    if(Serial1.available() > 0){
+      datoserial(Serial1.read());// dependiendo del valor recibido, ejecuto una secuencia para mover el vehiculo
+    }
+  } 
+  for(pos = 180; pos>=20; pos-=1)     // goes from 180 degrees to 0 degrees 
+  {                                
+    myservo.write(pos);              // tell servo to go to position in variable 'pos' 
+    srf05_1();
+    srf05_2();
+    srf05_3();
+    delay(50);
+    Serial.print("di1 = ");
+    Serial.print(di1);
+    Serial.print("\t di2 = ");
+    Serial.print(di2);
+    Serial.print("\t di3 = ");
+    Serial.print(di3);
+    Serial.println();
+   // recivo comandos por serial
+    if(Serial1.available() > 0){
+      datoserial(Serial1.read());// dependiendo del valor recibido, ejecuto una secuencia para mover el vehiculo
+    } 
+  } 
+ 
+}
+
+// funcion para medir los ultrasonidos
+void srf05_1(){
+  detachInterrupt(u1);
+  d1 = 0;di1 = 0; // inicio valor en donde empiezo a contar y distancia
+  // se manda un pulso de 10us
+  pinMode(u1, OUTPUT);digitalWrite(u1, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(u1, LOW);
+  // se espera el eco y se activan las interrupciones
+  pinMode(u1, INPUT);
+  mu1 = false;attachInterrupt(u1, fu1, RISING);mu1 = true;
+}
+void srf05_2(){
+  detachInterrupt(u2);
+  d2 = 0;di2 = 0; // inicio valor en donde empiezo a contar y distancia
+  // se manda un pulso de 10us
+  pinMode(u2, OUTPUT);digitalWrite(u2, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(u2, LOW);
+  // se espera el eco y se activan las interrupciones
+  pinMode(u2, INPUT);
+  mu2 = false;attachInterrupt(u2, fu2, RISING);mu2 = true;
+}
+void srf05_3(){  
+  detachInterrupt(u3);
+  d3 = 0;di3 = 0; // inicio valor en donde empiezo a contar y distancia
+  // se manda un pulso de 10us
+  pinMode(u3, OUTPUT);digitalWrite(u3, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(u3, LOW);
+  // se espera el eco y se activan las interrupciones
+  pinMode(u3, INPUT);
+  mu3 = false;attachInterrupt(u3, fu3, RISING);mu3 = true;
+}
+
+
+void fu1(){
+  if (mu1){
+    if (d1 == 0){d1 = micros();attachInterrupt(u1, fu1, FALLING);} 
+    else{d1 = micros()-d1; di1 = d1/58.30;} 
+  }
+}
+
+void fu2(){
+  if (mu2){
+    if (d2 == 0){d2 = micros();attachInterrupt(u2, fu2, FALLING);}
+    else{d2 = micros()-d2; di2 = d2/58.30;}
+  }
+}
+
+void fu3(){
+  if (mu3){
+  if (d3 == 0){d3 = micros();attachInterrupt(u3, fu3, FALLING);}
+  else{d3 = micros()-d3; di3 = d3/58.30;}
+  }
+}
+
+
+void datoserial(char dato){
+    if(dato == 'a'){
+      adelante();
+    }
+     if(dato == 'i'){
+      izquierda();
+    } 
+    if(dato == 'd'){
+      derecha();
+    }
+    if(dato == 'p'){
+      parar();
+    }
+    if(dato == 'h'){
+      atras();
+    }
+}
+
+void parar(){
+  digitalWrite(pin_dire_moto_izqu, LOW);    // motor izquierdo
+  analogWrite(pin_velo_moto_izqu, 0);
+  digitalWrite(pin_dire_moto_dere, LOW);    // motor derecho
+  analogWrite(pin_velo_moto_dere, 0);
+}
+void adelante(){
+  //a1=1;a2=1;  // variables donde guardo la direccion de el robot
+  digitalWrite(pin_dire_moto_izqu, LOW);    // motor izquierdo
+  analogWrite(pin_velo_moto_izqu, velo_moto_izqu);
+  digitalWrite(pin_dire_moto_dere, LOW);    // motor derecho
+  analogWrite(pin_velo_moto_dere, velo_moto_dere);
+}
+void atras(){
+  //a1=0;a2=0;  // variables donde guardo la direccion de el robot
+  digitalWrite(pin_dire_moto_izqu, HIGH);    // motor izquierdo
+  analogWrite(pin_velo_moto_izqu, velo_moto_izqu);
+  digitalWrite(pin_dire_moto_dere, HIGH);    // motor derecho
+  analogWrite(pin_velo_moto_dere, velo_moto_dere);
+}
+void derecha(){
+  //a1=1;a2=0;  // variables donde guardo la direccion de el robot
+  digitalWrite(pin_dire_moto_izqu, HIGH);    // motor -izquierdo
+  analogWrite(pin_velo_moto_izqu, velo_moto_izqu);
+  digitalWrite(pin_dire_moto_dere, LOW);    // motor -derecho
+  analogWrite(pin_velo_moto_dere, velo_moto_dere);
+}
+void izquierda(){
+  //a1=0;a2=1;  // variables donde guardo la direccion de el robot
+  digitalWrite(pin_dire_moto_izqu, LOW);    // motor -izquierdo
+  analogWrite(pin_velo_moto_izqu, velo_moto_izqu);
+  digitalWrite(pin_dire_moto_dere, HIGH);    // motor -derecho
+  analogWrite(pin_velo_moto_dere, velo_moto_dere);
+}  

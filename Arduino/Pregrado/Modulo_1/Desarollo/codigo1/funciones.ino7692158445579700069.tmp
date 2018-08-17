@@ -1,0 +1,4 @@
+void escapar(){
+  if(medida_sonar_derecha <= medida_sonar_izquierda){izquierda();}
+  else{derecha();}
+}

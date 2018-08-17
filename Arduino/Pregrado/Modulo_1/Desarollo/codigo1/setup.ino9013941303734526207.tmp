@@ -1,0 +1,34 @@
+void setup() {
+  // initialize serial communication:
+  Serial.begin(115200);
+  Serial1.begin(115200);
+  
+  // ----------------- motores ----------------- 
+  // se declaran como salidas
+  pinMode(pin_dire_moto_dere,OUTPUT);
+  pinMode(pin_velo_moto_dere,OUTPUT);
+  pinMode(pin_dire_moto_izqu,OUTPUT); 
+  pinMode(pin_velo_moto_izqu,OUTPUT);
+  
+  servo1.attach(7);  // asigno pin al servo
+  servo2.attach(6);  // asigno pin al servo
+  servo3.attach(5);  // asigno pin al servo
+  
+  activarEncoder1(pinA1,pinB1);
+  activarEncoder2(pinA2,pinB2);
+  parar(); // inicializo el robot quieto
+
+  // ----------- infrarrojos de pista ----------- 
+  // declaro puertos de control del mosfet de los leds como salida
+  pinMode(sen_lineae1,OUTPUT);
+  pinMode(sen_lineae2,OUTPUT);
+  
+  for (int i=0;i<8;i++){
+    pinMode(det_colisiones[i],INPUT);
+  }
+  if(ver == 6){
+    servo1.write(125);
+    servo2.write(100);
+    servo3.write(45);
+  }
+}// fin setup

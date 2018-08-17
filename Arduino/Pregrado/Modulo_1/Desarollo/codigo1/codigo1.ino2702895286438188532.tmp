@@ -1,0 +1,309 @@
+
+
+const byte u1 = 30;   // pin ultrasonido 1           
+const byte u2 = 28;   // pin ultrasonido 2
+const byte u3 = 26;  // pin ultrasonido 3                                              
+
+
+// --------------------------------------- conexion sensores infrarrojos pista  --------------------------------------- 
+
+unsigned int aux_tiem_medi_infr;   // timepo de medicion infrarrojos -> guardo el tiempo desde la ultima medicion
+
+//unsigned int peri_medi_infr = 5; // periodo de medicion infrarrojos ms
+
+const byte nsen = 8;               // numero de sensores de infrarrojo
+
+int rlinea = 7000;                // defino el timepo de espera de los sensores -------------------------------------------------------------------------- referencia linea ------------------------------------
+//  variables usadas para conparar cada sensr de linea individualmente
+int valo_refe_line1[] = {rlinea,rlinea,rlinea,rlinea,rlinea,rlinea,rlinea,rlinea};
+int valo_refe_line2[] = {rlinea,rlinea,rlinea,rlinea,rlinea,rlinea,rlinea,rlinea};
+
+bool medi_bool_line[15];            // vector con los valores booleanos de los sensores -> detecta o no
+
+
+// -------------------- variables fisicas del sensor -------------------- 
+// izquierda
+const byte sen_lineae1 = 42;                            // pin de abilitacion mosfet
+const byte sen_linea1[] = {40,38,36,34,32,30,28,26};    // pines digitales del sensor en orden
+unsigned long tiem_refl_1[nsen];                        // varialbe para calculo de la medida de la reflexion
+unsigned int medi_refl_1[nsen];                         // contiene la medida de la relfexion
+// derecho
+const byte sen_lineae2 = 43;                            // pin de abilitacion mosfet
+const byte sen_linea2[] = {41,39,37,35,33,31,29,27};    // pines digitales del sensor
+unsigned long tiem_refl_2[nsen];                        // variable para calculo de la medida de la reflexion
+unsigned int medi_refl_2[nsen];                         // contiene la medida de la relfexion
+
+
+byte cont_line_dere = 0;                                // variable conteo sensores de linea derechos, detectando linea
+byte cont_line_izqu = 0;                                // variable conteo sensores de linea izquierdo, detectando linea
+
+bool veo_line_fren = false;                             // se pone en alto cuando se detecta linea de frente
+bool veo_line_late = false;                             // se pone en alto cuando se detecta linea de lateralmente
+
+
+unsigned long d1,d2,d3;
+int di1,di2,di3;
+bool mu1 = false,mu2 = false,mu3 = false;
+
+// ----- encoder 1 -----
+int ca1 = 0;  int cb1 = 0;
+int pinA1 = 22;
+int pinB1 = 23;
+int est_enc1 = 0;
+long pas_tot1 = 0;
+// ----- encoder 2 -----
+int ca2 = 0;  int cb2 = 0;
+int pinA2 = 24;
+int pinB2 = 25;
+int est_enc2 = 0;
+long pas_tot2 = 0;
+
+// ------------------------- servos
+#include <Servo.h> 
+
+Servo servo1;  // servo 1
+Servo servo2;  // servo 2
+Servo servo3;  // servo 3
+ 
+//int pos = 0;    // variable to store the servo position 
+ 
+// ------------------------------------------------------ motores y actuadores ------------------------------------------------------ 
+// ----------- conexion motores ----------- 
+// ----- motores ----- 
+// motor izquierdo - m2
+const byte pin_dire_moto_izqu = 10;
+const byte pin_velo_moto_izqu = 11;
+
+// motor derecho - m1
+const byte pin_dire_moto_dere = 13;  
+const byte pin_velo_moto_dere = 12;
+
+// variables que contiene la velocidad de los motores cargadas al llamar las funciones de movimiento
+byte velo_moto_izqu = 150; // izquierdo
+byte velo_moto_dere = 150; // derecho
+
+byte velo_esta = 70;      // velocidad entandar de el desplazamiento
+byte valo_ajus_velo = 5;  // valor de ajuste -> se le suma al motor derecho
+
+// --------------------- depuracion --------------------- 
+int ver = 1;
+
+/*
+1 -> ver encoders
+*/
+
+void setup() {
+  // initialize serial communication:
+  Serial.begin(115200);
+  Serial1.begin(115200);
+  
+  // ----------------- motores ----------------- 
+  // se declaran como salidas
+  pinMode(pin_dire_moto_dere,OUTPUT);
+  pinMode(pin_velo_moto_dere,OUTPUT);
+  pinMode(pin_dire_moto_izqu,OUTPUT); 
+  pinMode(pin_velo_moto_izqu,OUTPUT);
+  
+  servo1.attach(7);  // asigno pin al servo
+  servo1.attach(6);  // asigno pin al servo
+  servo1.attach(5);  // asigno pin al servo
+  
+  activarEncoder1(pinA1,pinB1);
+  activarEncoder2(pinA2,pinB2);
+  parar(); // inicializo el robot quieto
+
+  // ----------- infrarrojos de pista ----------- 
+  // declaro puertos de control del mosfet de los leds como salida
+  pinMode(sen_lineae1,OUTPUT);
+  pinMode(sen_lineae2,OUTPUT);
+  
+}
+
+void loop(){
+  if(ver == 1){
+  delay(100);
+  Serial.print("Ca1= " + String(ca1));
+  Serial.print(" , Cb1= " + String(cb1));
+  Serial.print(" , Est_enc1= " + String(est_enc1));
+  Serial.print(" , pas_tot1= " + String(pas_tot1));
+  Serial.print("\t");
+  Serial.print("Ca2= " + String(ca2));
+  Serial.print(" , Cb2= " + String(cb2));
+  Serial.print(" , Est_enc2= " + String(est_enc2));
+  Serial.print(" , pas_tot2= " + String(pas_tot2));
+  Serial.println("\t");  
+  }
+
+   // ------------------------------------ detecto lineas ------------------------------------  
+  
+  veo_line_fren = false;    // supongo que no estoy viendo linea de frente
+  veo_line_late = false;    // supongo que no estoy viendo linea de lado
+  
+  cont_line_dere = 0;     // variable conteo sensores de linea derechos detectando linea
+  cont_line_izqu = 0;     // variable conteo sensores de linea izquierdos detectando linea
+  
+  // cuento las detecciones de el lado derecho
+  for(int i=0;i<8;i++){
+    if(medi_bool_line[i] == HIGH){cont_line_dere++;}
+  }
+  // cuento las detecciones de el lado izquierdo
+  for(int i=8;i<15;i++){
+    if(medi_bool_line[i] == HIGH){cont_line_izqu++;}
+  }
+  
+  if(cont_line_dere > 0 && cont_line_izqu > 0){veo_line_fren = true;}        // si hay linea en frente
+  if(cont_line_dere > 1 || cont_line_izqu > 1){veo_line_late = true;}        // si veo con dos sensores linea de lado
+
+  
+  /*
+   for(pos = 20; pos <= 180; pos += 1) // goes from 0 degrees to 180 degrees 
+  {                                  // in steps of 1 degree 
+    myservo.write(pos);              // tell servo to go to position in variable 'pos' 
+    srf05_1();
+    srf05_2();
+    srf05_3();
+    delay(50);
+    Serial.print("di1 = ");
+    Serial.print(di1);
+    Serial.print("\t di2 = ");
+    Serial.print(di2);
+    Serial.print("\t di3 = ");
+    Serial.print(di3);
+    Serial.println(); 
+    // recivo comandos por serial
+    if(Serial1.available() > 0){
+      datoserial(Serial1.read());// dependiendo del valor recibido, ejecuto una secuencia para mover el vehiculo
+    }
+  } 
+  for(pos = 180; pos>=20; pos-=1)     // goes from 180 degrees to 0 degrees 
+  {                                
+    myservo.write(pos);              // tell servo to go to position in variable 'pos' 
+    srf05_1();
+    srf05_2();
+    srf05_3();
+    delay(50);
+    Serial.print("di1 = ");
+    Serial.print(di1);
+    Serial.print("\t di2 = ");
+    Serial.print(di2);
+    Serial.print("\t di3 = ");
+    Serial.print(di3);
+    Serial.println();
+   // recivo comandos por serial
+    if(Serial1.available() > 0){
+      datoserial(Serial1.read());// dependiendo del valor recibido, ejecuto una secuencia para mover el vehiculo
+    } 
+  } 
+ */
+}
+
+// funcion para medir los ultrasonidos
+void srf05_1(){
+  detachInterrupt(u1);
+  d1 = 0;di1 = 0; // inicio valor en donde empiezo a contar y distancia
+  // se manda un pulso de 10us
+  pinMode(u1, OUTPUT);digitalWrite(u1, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(u1, LOW);
+  // se espera el eco y se activan las interrupciones
+  pinMode(u1, INPUT);
+  mu1 = false;attachInterrupt(u1, fu1, RISING);mu1 = true;
+}
+void srf05_2(){
+  detachInterrupt(u2);
+  d2 = 0;di2 = 0; // inicio valor en donde empiezo a contar y distancia
+  // se manda un pulso de 10us
+  pinMode(u2, OUTPUT);digitalWrite(u2, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(u2, LOW);
+  // se espera el eco y se activan las interrupciones
+  pinMode(u2, INPUT);
+  mu2 = false;attachInterrupt(u2, fu2, RISING);mu2 = true;
+}
+void srf05_3(){  
+  detachInterrupt(u3);
+  d3 = 0;di3 = 0; // inicio valor en donde empiezo a contar y distancia
+  // se manda un pulso de 10us
+  pinMode(u3, OUTPUT);digitalWrite(u3, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(u3, LOW);
+  // se espera el eco y se activan las interrupciones
+  pinMode(u3, INPUT);
+  mu3 = false;attachInterrupt(u3, fu3, RISING);mu3 = true;
+}
+
+
+void fu1(){
+  if (mu1){
+    if (d1 == 0){d1 = micros();attachInterrupt(u1, fu1, FALLING);} 
+    else{d1 = micros()-d1; di1 = d1/58.30;} 
+  }
+}
+
+void fu2(){
+  if (mu2){
+    if (d2 == 0){d2 = micros();attachInterrupt(u2, fu2, FALLING);}
+    else{d2 = micros()-d2; di2 = d2/58.30;}
+  }
+}
+
+void fu3(){
+  if (mu3){
+  if (d3 == 0){d3 = micros();attachInterrupt(u3, fu3, FALLING);}
+  else{d3 = micros()-d3; di3 = d3/58.30;}
+  }
+}
+
+
+void datoserial(char dato){
+    if(dato == 'a'){
+      adelante();
+    }
+     if(dato == 'i'){
+      izquierda();
+    } 
+    if(dato == 'd'){
+      derecha();
+    }
+    if(dato == 'p'){
+      parar();
+    }
+    if(dato == 'h'){
+      atras();
+    }
+}
+
+void parar(){
+  digitalWrite(pin_dire_moto_izqu, LOW);    // motor izquierdo
+  analogWrite(pin_velo_moto_izqu, 0);
+  digitalWrite(pin_dire_moto_dere, LOW);    // motor derecho
+  analogWrite(pin_velo_moto_dere, 0);
+}
+void adelante(){
+  //a1=1;a2=1;  // variables donde guardo la direccion de el robot
+  digitalWrite(pin_dire_moto_izqu, LOW);    // motor izquierdo
+  analogWrite(pin_velo_moto_izqu, velo_moto_izqu);
+  digitalWrite(pin_dire_moto_dere, LOW);    // motor derecho
+  analogWrite(pin_velo_moto_dere, velo_moto_dere);
+}
+void atras(){
+  //a1=0;a2=0;  // variables donde guardo la direccion de el robot
+  digitalWrite(pin_dire_moto_izqu, HIGH);    // motor izquierdo
+  analogWrite(pin_velo_moto_izqu, velo_moto_izqu);
+  digitalWrite(pin_dire_moto_dere, HIGH);    // motor derecho
+  analogWrite(pin_velo_moto_dere, velo_moto_dere);
+}
+void derecha(){
+  //a1=1;a2=0;  // variables donde guardo la direccion de el robot
+  digitalWrite(pin_dire_moto_izqu, HIGH);    // motor -izquierdo
+  analogWrite(pin_velo_moto_izqu, velo_moto_izqu);
+  digitalWrite(pin_dire_moto_dere, LOW);    // motor -derecho
+  analogWrite(pin_velo_moto_dere, velo_moto_dere);
+}
+void izquierda(){
+  //a1=0;a2=1;  // variables donde guardo la direccion de el robot
+  digitalWrite(pin_dire_moto_izqu, LOW);    // motor -izquierdo
+  analogWrite(pin_velo_moto_izqu, velo_moto_izqu);
+  digitalWrite(pin_dire_moto_dere, HIGH);    // motor -derecho
+  analogWrite(pin_velo_moto_dere, velo_moto_dere);
+}  
