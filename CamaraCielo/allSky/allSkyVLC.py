@@ -1,22 +1,21 @@
 
 #!/bin/python
-
-###### Librerias 
+#This script was authored by AndrewH7 and belongs to him (www.instructables.com/member/AndrewH7)
+#You have permission to modify and use this script only for your own personal usage
+#You do not have permission to redistribute this script as your own work
+#Use this script at your own risk
 
 #import RPi.GPIO as GPIO
+#import serial
 import os
-from time import sleep
-from time import gmtime, strftime, localtime, strptime, time#, timedelta
+from time import gmtime, strftime, localtime, strptime, time, sleep#, timedelta
+#import time
+
 
 def ensure_dir(f):
     d = os.path.dirname(f)
     if not os.path.exists(d):
         os.makedirs(d)
-
-def enviarImagen64(f):
-    print(str(f))
-
-###### Puerto indicador estado
 
 #gpio_pin_number = 21
 
@@ -36,10 +35,17 @@ def enviarImagen64(f):
 #The pull-up resistor means the pin is high by default
 
 try:
-    #Informo que la raspberry esta capturando fotos
-    
+    # informo que la raspberry esta encendida
+    #port = serial.Serial("/dev/ttyAMA0", baudrate=115200, timeout=3.0)
+    #port.write("on")
+    #port.close()
+    #Use falling edge detection to see if pin is pulled
+    #low to avoid repeated polling
     #GPIO.wait_for_edge(gpio_pin_number, GPIO.FALLING)
- 
+    # informo que esta siendo apagada
+    #port = serial.Serial("/dev/ttyAMA0", baudrate=115200, timeout=3.0)
+    #port.write("off")
+    #port.close()
     #Revert all GPIO pins to their normal states (i.e. input = safe)
     #GPIO.cleanup()
     
@@ -47,53 +53,68 @@ try:
     # cerramos VLC
     os.system("sudo killall vlc")
     
-    ruta = "/home/pi/Desktop/fotosCieloAllSky"
+    #ruta = "/home/pi/Desktop/fotosCieloAllSky"
     
-    ruta = '/home/pi/Desktop/fotosCieloAllSky/' + strftime("%Y", localtime()) + '/' + strftime("%m", localtime()) + '/' + strftime("%d", localtime())
-    ensure_dir(ruta)
+    #ruta = '/home/pi/Desktop/fotosCieloAllSky/' + strftime("%Y", localtime()) + '/' + strftime("%m", localtime()) + '/' + strftime("%d", localtime())
+    #ensure_dir(ruta)
     # fecha actual
-    tiempo = strftime("%Y-%m-%d-%H-%M-%S", localtime())
+    #tiempo = strftime("%Y-%m-%d-%H-%M-%S", localtime())
     
-
-    # Configuracion tiempos entre fotos y numero de fotos
-    # Cada 10 minutos 
-    tcap = 60 # Tiempo caputura fotogramas en segundos (Se captura aproximadamente 1 imagen cada 30 segundos, la primera sale negra por lo que el EasyCap require unos segundos para iniciar)
-    tencap = 30 # Tiempo entre capturas en segundos
-    cont = 1 # Contador capturas (permite crear carpetas para cada momento de captura)
+    tcap = 60 # Tiempo caputura fotogramas en segundos
+    tencap = 240 # Tiempo entre capturas en segundos
     
-
+    # Contador capturas
+    file = open("conteo.txt", "r") 
+    num  = file.read() 
+    print "conteo:", str(num)
+    cont = int(num)
+    
     # verificamos conexion y funcionamiento
     videoIn = 0
     maxVideo = 2
     esperar = True
 
-    # Ciclo principal captura de imagenes del cielo
+
     while(1):   
         # Capturamos imagenes cada x tiempo
-        print ("Esperando... " + str(tencap) + ' Segundos')
-        if esperar: sleep(tencap)		#dormimos el resto de tiempo hasta timeEntreF
-        else: esperar = True
-
+        if esperar: 
+            print ("Esperando... " + str(tencap) + ' Segundos')
+            sleep(tencap)       # dormimos el resto de tiempo hasta timeEntreF
+        else: 
+            esperar = True      # activamos nuevamente la espera
+        
         # Creamos sistema de archivos
-        ruta = '/home/pi/Desktop/fotosCieloAllSky/' + strftime("%Y", localtime()) + '/' + strftime("%m", localtime()) + '/' + strftime("%d", localtime()) + '/' + str(cont) + '/' 
+        ruta = '/home/pi/Desktop/fotosCieloAllSky/A' + strftime("%Y", localtime()) + 'M' + strftime("%m", localtime()) + 'D' + strftime("%d", localtime()) + '/' 
         ensure_dir(ruta)
-        tiempo = strftime("%Y-%m-%d-", localtime())
+        tiempo = strftime("%Y-%m-%d-%H-%M", localtime())
+
+        print (tiempo)
+        # capturamos la list de archivos antes de capturar
+        listaOld = os.listdir(ruta) # dir is your directory path
+        number_filesOld = len(listaOld) + 1 # le sumamos 1 para garantizar que se guardaron almenos 2 archivos
         
         # Iniciamos VLC
         print ("Iniciando VLC... ")
-        os.system("cvlc v4l2:///dev/video"+str(videoIn)+" :v4l2-standard= :live-caching=3000 --scene-path=" + str(ruta) + " --scene-prefix=" + tiempo + " &")
+        os.system("vlc v4l2:///dev/video0 :v4l2-standard= :live-caching=3000 --scene-path=" + str(ruta) + " --scene-prefix=" + tiempo + "-C" + str(cont) + "_ &")
+        
+        # Actualizamos el contador de captura
         cont = cont + 1
+        file = open("conteo.txt","w") 
+        file.write(str(cont)) 
+        file.close() 
+
         
         # Esperamos que capture un par de escenas
         print ("Capturando... " + str(tcap) + ' Segundos')
         sleep(tcap)		#dormimos el resto de tiempo hasta timeEntreF
         
+
         # verificamos que este guardando si no cambiamos puerto de video y reintentamos de inmediato
         lista = os.listdir(ruta) # dir is your directory path
         number_files = len(lista)
-        print number_files
+        print ("Archivos nuevos... " + str(number_files - number_filesOld + 1))
 
-        if number_files == 0:
+        if number_files < number_filesOld:
             videoIn = (videoIn + 1) % maxVideo
             print ("Falla video, probando otro puerto: " + str(videoIn))
             cont = cont - 1     # Reiniciamos la captura anterior
@@ -102,6 +123,7 @@ try:
             #imagenes generadas
             #procesarImagen(ruta)
             pass
+
 
         # Cerramos VLC
         print ("cerrando VLC... ")
@@ -112,13 +134,3 @@ except:
     pass
 
 
-def procesarImagen(f):
-    # cargamos la imagen
-
-    # ajustamos sitema coordenado
-
-    # ortogonalizamos la imagen
-
-    # analizamos cmabio de nubes, clusters... 
-
-    pass

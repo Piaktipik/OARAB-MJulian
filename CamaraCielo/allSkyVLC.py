@@ -63,7 +63,12 @@ try:
     
     tcap = 60 # Tiempo caputura fotogramas en segundos
     tencap = 240 # Tiempo entre capturas en segundos
-    cont = 1 # Contador capturas
+    
+    # Contador capturas
+    file = open("conteo.txt", "r") 
+    num  = file.read() 
+    print "conteo:", str(num)
+    cont = int(num)
     
     while(1):   
         # Capturamos imagenes cada x tiempo
@@ -78,7 +83,12 @@ try:
         # Iniciamos VLC
         print ("Iniciando VLC... ")
         os.system("vlc v4l2:///dev/video0 :v4l2-standard= :live-caching=3000 --scene-path=" + str(ruta) + " --scene-prefix=" + tiempo + " &")
+        
         cont = cont + 1
+        file = open("conteo.txt","w") 
+        file.write(str(cont)) 
+        file.close() 
+
         
         # Esperamos que capture un par de escenas
         print ("Capturando... " + str(tcap) + ' Segundos')
