@@ -3,9 +3,15 @@
 // librerias
 #include <ESP8266WiFi.h>
 
+const char* ssid = "OARAB";
+const char* password = "515tema*.";
+
 // datos Conexion RED
-const char* ssid = "OARAB-HOME";
-const char* password = "Obrancoenovo18";
+//const char* ssid = "OARAB-HOME";
+//const char* password = "Obrancoenovo18";
+
+//const char* ssid = "WIFI-ITM";
+//const char* password = "";
 
 // puerto escucha por defecto (8080)
 WiFiServer server(80);

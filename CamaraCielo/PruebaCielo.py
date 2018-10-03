@@ -11,12 +11,29 @@ Created on Mon Aug 13 15:54:08 2018
 from PIL import Image
 import numpy as np
 from random import randint
+import os
+
+
+# %% Funciones
+def ensure_dir(f):
+    d = os.path.dirname(f)
+    if not os.path.exists(d):
+        os.makedirs(d)
+
+def enviarImagen64(f):
+    print(str(f))
+
+# %% Declaraciones iniciales
 
 print("Cargando imagen...")
-ruta = "C:/Users/Piaktipik/Google Drive/Maestria UDEA/Proyecto Tesis/Proyecto-Automatizacion-Telescopio/Maestria-Julian/Desarollo/CamaraCielo/allSky"
-nameImg = '/2018-08-15-00061'
-image = Image.open( ruta + nameImg +'.png')
+rutai = "C:/Users/PC/Desktop/A2018M10D03"
+rutap = "C:/Users/PC/Desktop/A2018M10D03/pro"
+ensure_dir(rutap)
+nameImg = '/2018-10-03-01-27-C13088_00031'
+image = Image.open( rutai + nameImg +'.png')
 #image.show()
+
+# %% 
 
 print("Cortando Imagen...")
 # extraemos solo el centro de la imagen
@@ -28,7 +45,7 @@ right = width-114
 bottom = height-18
 cImage = image.crop((left, top, right, bottom))
 widthc, heightc = cImage.size 
-cImage.save( ruta + nameImg +'-c.png')
+cImage.save(rutap + nameImg +'-c.png')
 #print (str(widthc) +" "+ str(heightc))  # nuevo tamano 530x500
 #cImage.show()
 
@@ -46,62 +63,76 @@ pBImage  = pImage[...,2]
 
 imgR = Image.fromarray(pRImage)
 #imgR.save(ruta +'/2018/07/12/3/2018-07-12-00061-cr.png')
-imgR.save(ruta + nameImg +'-cr.png')
+imgR.save(rutap + nameImg +'-cr.png')
 
 imgG = Image.fromarray(pGImage)
 #imgG.save(ruta +'/2018/07/12/3/2018-07-12-00061-cg.png')
-imgG.save(ruta + nameImg +'-cg.png')
+imgG.save(rutap + nameImg +'-cg.png')
 
 imgB = Image.fromarray(pBImage)
 #imgB.save(ruta +'/2018/07/12/3/2018-07-12-00061-c.png')
-imgB.save(ruta + nameImg +'-cb.png')
+imgB.save(rutap + nameImg +'-cb.png')
 
 # %% Deteccion de cielo (realizamos comparacion de colores de la imagen)
-offset = -255*0.05 # usado para aumentar distancia entre azul y otros colores
+offset = 255*0.20 # usado para aumentar distancia entre azul y otros colores
 print("Comparando colores...")
+prom = 0
+for i in range(0,heightc):
+    for j in range(0,widthc):
+        prom = prom + pBImage[i,j] + pRImage[i,j] +pGImage[i,j]
+prom = prom/(3*heightc*widthc)
+print(prom)
+offset = prom*0.8
 for i in range(0,heightc):
     for j in range(0,widthc):
         #print("i: " + str(i) + " j: " + str(j))
-        if ((pBImage[i,j] + offset) > ((pRImage[i,j]+pGImage[i,j])/2)):
-            cielo[i,j] = 255
-        else:
-            cielo[i,j] = 0
-
-        if ( (pBImage[i,j] + offset) > pRImage[i,j] and (pBImage[i,j] + offset) > pGImage[i,j] ):
+#        if ((pBImage[i,j] + offset) > ((pRImage[i,j]+pGImage[i,j])/2)):
+#            cielo[i,j] = 255
+#        else:
+#            cielo[i,j] = 0
+#
+#        if ( (pBImage[i,j] + offset) > pRImage[i,j] and (pBImage[i,j] + offset) > pGImage[i,j] ):
+#            cieloA[i,j] = 255
+#        else:
+#            cieloA[i,j] = 0
+        #
+        if ( (pBImage[i,j] > offset) and (pRImage[i,j] > offset) and ( pGImage[i,j] > offset) ):
             cieloA[i,j] = 255
         else:
             cieloA[i,j] = 0
 
     # fin recorrido j
 # fin recorrido i
-Image.fromarray(cielo).save(ruta + nameImg +'-ccp.png')
-Image.fromarray(cieloA).save(ruta + nameImg +'-cct.png')
+#Image.fromarray(cielo).save(rutap + nameImg +'-ccp.png')
+Image.fromarray(cieloA).save(rutap + nameImg +'-cct.png')
 
 # %% Buscamos lineas verticales y las removemos (promediandolas)
 print("Eliminando saturacion sol...")
-pixMax = 100    # Numero de pixeles maximo diferetes de blanco en cada linea
+pixMax = 10    # Numero de pixeles maximo diferetes de blanco en cada linea
 nLineas = 0 # Numero de lineas detectadas
 lineas = np.zeros(widthc)   # Guardamos las posiciones
-
+acielo = cielo
 for j in range(0, widthc):
     linea = 0
     for i in range(0, heightc):
         # sumamos cada linea si esta en su mayoria en blanco la removemos
         linea = linea + cielo[i,j]
-        
+        #print ("linea: " + str(linea) + " mas cielo: " + str(cielo[i,j]))
     # muchos pixeles en 255
+    #print ("lineaDiv: " + str(linea/255) + " heigtc: " + str(heightc - pixMax))
     if (linea/255) > (heightc - pixMax):
         # linea de saturaccion detectada (contamos el numero de lineas y su posicion y ancho)
         for i in range(0,heightc):
-            cielo[i,j] = 120       # Ponemos un color gris sobre la linea detectada
+            acielo[i,j] = 120       # Ponemos un color gris sobre la linea detectada
             lineas[nLineas] = j    # Guardamos la posisicion de la linea
         nLineas = nLineas + 1
         
-ciel = Image.fromarray(cielo)
-ciel.save(ruta + nameImg +'-cls.png')     
+ciel = Image.fromarray(acielo)
+ciel.save(rutap + nameImg +'-cls.png')     
 
 # %% Promediamos estas lineas con su fondo
 # vector vecindario pixel
+cielo = acielo # aceptamos cielo con lineas
 VV = np.array([[2,1],[-2,1],[1,1],[-1,1],[0,1], [2,-1],[-2,-1],[1,-1],[-1,-1],[0,-1]]) # evitar [1,0],[-1,0]
 Vt = VV.shape[0]            #se usa para recorrer los pixeles aledano
 
@@ -125,7 +156,8 @@ for j in range(0, nLineas):
     
 #print (str(nLineas))
 ciel = Image.fromarray(cielo)
-ciel.save(ruta + nameImg +'-css.png')
+ensure_dir(rutap)
+ciel.save(rutap + nameImg +'-css.png')
 
 
 # %% Analisis Areas Islas
@@ -213,16 +245,20 @@ for i in range(0,heightc):
             cieloM[i,j] = 0
 
 ciel = Image.fromarray(cieloM)
-ciel.save(ruta + nameImg +'-zonaCielo.png')
+ciel.save(rutap + nameImg +'-zonaCielo.png')
 
 
-# %% Cargeu de imagen cielo
+# %% zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
+# Codigo recurrente analisis de todas la imagenes
+
+
+# %% Cargue de imagen cielo
 # Cargamos imagen
 print("Cargando imagen zona cielo...")
-zonaCielo = Image.open( ruta + nameImg +'-zonaCielo.png')
+zonaCielo = Image.open( rutap + '/FondoGenerado.png')
 zCielo = np.array(zonaCielo)
 print(zCielo.shape)
-#pRImage  = zCielo[...,0] # cargamos cualquiera de los canales
+zCielo  = zCielo[...,0] # cargamos cualquiera de los canales
 
 # %% Ponemos la mascara de fondo sobre la imagen para verificar
 print("Removiendo Fondo...")
@@ -234,7 +270,7 @@ for i in range(0,heightc):
 
 
 ciel = Image.fromarray(pImage)
-ciel.save(ruta + nameImg +'-zonaCieloF.png')
+ciel.save(rutap + nameImg +'-zonaCieloF.png')
 
 # %% Estraemos colores cielo
 print("Separamos Colores cielo...")
@@ -260,7 +296,7 @@ for i in range(0,heightc):
 
     # fin recorrido j
 # fin recorrido i
-Image.fromarray(cielo).save(ruta + nameImg +'-cct.png')
+Image.fromarray(cielo).save(rutap + nameImg +'-cct.png')
 
 # %% Deteccion de nubes como grupos dentro del cielo
 print("Identificadon Nubes...")
@@ -323,7 +359,7 @@ print ("g: " + str(g))      # se imprime el numero de grupos detectado
 ciel = Image.fromarray(res)
 if ciel.mode != 'RGB':
     ciel = ciel.convert('RGB')
-ciel.save(ruta + nameImg +'-nCielo.png')
+ciel.save(rutap + nameImg +'-nCielo.png')
 
 # %% Generamos colores aleatorios para las nubes
 
@@ -347,7 +383,7 @@ for i in range(0,x):
         if ciel.getpixel((j,i))[0] > 0:
             ciel.putpixel((j,i), tuple(colores[ciel.getpixel((j,i))[0],:][0]))
             
-ciel.save(ruta + nameImg +'-nCieloc.png')
+ciel.save(rutap + nameImg +'-nCieloc.png')
 
 # %% Guardamos datos nubes en Txt
 
@@ -356,17 +392,6 @@ ciel.save(ruta + nameImg +'-nCieloc.png')
 # %% Comparacion tendencia nubes
 
 
-
-# %% Funciones
-def ensure_dir(f):
-    d = os.path.dirname(f)
-    if not os.path.exists(d):
-        os.makedirs(d)
-
-def enviarImagen64(f):
-    print(str(f))
-
-    
 # %% comentario y funciones de posible utilidad
 #print (image.getbands())
 #print (image.info)

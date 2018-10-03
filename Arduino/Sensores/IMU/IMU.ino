@@ -49,7 +49,7 @@ void loop() {
         compass.a.x, compass.a.y, compass.a.z,
         compass.m.x, compass.m.y, compass.m.z,
         (int)gyro.g.x, (int)gyro.g.y, (int)gyro.g.z);
-      Serial.print(report);
+      Serial.println(report);
     }
     
     String datos = "";
