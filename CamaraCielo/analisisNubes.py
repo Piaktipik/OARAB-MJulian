@@ -45,7 +45,7 @@ zCielo  = zCielo[...,0] # cargamos cualquiera de los canales
 lista = os.listdir(rutai) # dir is your directory path
 number_files = len(lista)
 cont = 0
-for i in lista[:-1]:
+for i in lista[500:-1]:
     nameImg = "/" + i[:-4]
     cont = cont + 1
     print("Cargando imagen " + nameImg + ", (" + str(cont) +"/"+ str(number_files) +")")
