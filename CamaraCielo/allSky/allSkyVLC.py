@@ -4,8 +4,8 @@
 ###################################### Parametros Codigo ##################################################
 
 # Parametros codigo:
-tcap = 35 # Tiempo caputura fotogramas en segundos
-tencap = 25 # Tiempo entre capturas en segundos
+tcap = 30 # Tiempo caputura fotogramas en segundos
+tencap = 30 # Tiempo entre capturas en segundos
     
 # Contador capturas
 rutaCon = "/home/pi/allSky/conteo.txt"
@@ -32,7 +32,7 @@ GPIO.setup(led_rojo, GPIO.OUT)
 GPIO.setup(led_amar, GPIO.OUT)
 GPIO.setup(led_verd, GPIO.OUT)
 GPIO.setup(ena_easy, GPIO.OUT)
-
+                
 ######################################  variables captura tiempo 
 
 tiempoS = [2000, 0, 0, 0, 0, 0]
@@ -97,6 +97,11 @@ def ensure_dir(f):
         os.makedirs(d)
 
 try:
+    
+    regLog("Reiniciando EasyCap...")
+    GPIO.output(ena_easy,GPIO.LOW) # Des-activamos capturado
+    sleep(10)
+    GPIO.output(ena_easy,GPIO.HIGH) # Activamos capturador
     ###################################### Inicio y Configuraciones ##################################################
     regLog("Inicio Script captura AllSky VLC")    
     GPIO.output(ena_easy,GPIO.HIGH) # Activamos capturador
@@ -171,7 +176,7 @@ try:
         GPIO.output(led_verd,GPIO.LOW)
 
         # Creamos sistema de archivos
-        ruta = '/home/pi/Desktop/fotosCieloAllSky/A' + str(tiempo[0]) + 'M' + "%02d"%tiempo[1] + 'D' + "%02d"%tiempo[2] + '/' 
+        ruta = '/media/pi/4D59-20AF/fotosCieloAllSky/A' + str(tiempo[0]) + 'M' + "%02d"%tiempo[1] + 'D' + "%02d"%tiempo[2] + '/' 
         ensure_dir(ruta)
 
         # Se carga el tiempo
@@ -236,7 +241,7 @@ try:
 
             if reiniciarE > 3:
                 GPIO.output(led_rojo,GPIO.HIGH)
-                regLog("Reiniciando Sistema...")
+                regLog("Reiniciando EasyCap...")
                 GPIO.output(ena_easy,GPIO.LOW) # Des-activamos capturador
                 sleep(10)
                 GPIO.output(ena_easy,GPIO.HIGH) # Activamos capturador
