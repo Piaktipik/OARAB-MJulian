@@ -49,9 +49,7 @@ GPIO.setup(led_amar, GPIO.OUT)
 GPIO.setup(led_verd, GPIO.OUT)
 GPIO.setup(ena_easy, GPIO.OUT)
 
-ser = serial.Serial('/dev/ttyUSB0', 19200, timeout=5)
-print(ser.name)
-
+puertoSerial = '/dev/ttyUSB1'
 
 ###################################### Funciones ##################################################
 def mix2bytes(datosE,pos):
@@ -90,6 +88,7 @@ def actualizarTiempo():
             tiempo = tiempoS
             return tiempo
             break
+    return tiempoS
 
 # hilo de captura tiempo GPS
 def worker():
@@ -129,72 +128,88 @@ def worker():
 # hilo Captura datos Estacion
 def capturaEstacion():
     ###################################### Guardamos Datos Estacion
+    serialOperativo = False
     while(1):
-
-        tiempo = actualizarTiempo()
-
-        regLog('Solicitando LOOP: ')
-        ser.write(b'\n')
-        ser.write(b'\n')
-        sleep(0.1)
-        ser.write(b'LOOP 1') 
-        x = ser.read(100)          # read 99 bytes
-        regLog('Lectura: ')
-        regLog(x)
-
-        # Creamos sistema de archivos
-        ruta = '/home/pi/allSky/davisLog/A' + str(tiempo[0]) + 'M' + "%02d"%tiempo[1] + '/'
-        ensure_dir(ruta)
-
-        # Se carga el tiempo
-        nombreArchivo = 'DatosEstacion' + str(tiempo[0]) + '-' + "%02d"%tiempo[1] + '-' + "%02d"%tiempo[2] 
-        tiempoStr = str(tiempo[0]) + ':' + "%02d"%tiempo[1] + ':' + "%02d"%tiempo[2]  + '-' + "%02d"%tiempo[3] + ':' + "%02d"%tiempo[4] + ':' + "%02d"%tiempo[5] 
-        regLog("nCaptura... " + ruta + " T: " + tiempoStr)
-
-        #Procesamos los datos Capturados
-        #regLog('Procesando Datos: ')
-        #regLog('# Datos Capturados' + str(len(x)))
-        #xe = x.encode('ASCII') 
-        Datos = [tiempoStr]     # Cargamos el tiempo como primera columna
-        if len(x) > 99:
-            for i in range(TamD):
-                aux = ''
-                #regLog(Nombres[i] + ' Save:' +  str(DSave[i]) + ' * [' + str(DFact[i])+ ']')
-                if i<4:
-                    aux = x[i] 
-                if Dsize[i] < 2:
-                    aux = str(ord(x[Doff[i]]))
-                else:
-                    aux = str(mix2bytes(x,Doff[i]))
-                #regLog(aux)
-                # Agregamos Datos a salida
-                if DSave[i] == 1:
-                    Datos.append(aux)
-        else:
-            regLog('Problema Captura')
-        
-
-        #Guardamos los datos Capturados
-        fileName = ruta + nombreArchivo + '.csv'
         try:
-            #regLog('Abriendo archivo...' + fileName)
-            open(fileName, 'rb')
-        except:
-            # Archivo no existe, lo creamos
-            print('Error apertura... Creando archivo')
-            writer = csv.writer(open(fileName, 'w'))
-            # Cargamos nombres headers
-            headers = ['Tiempo Sistema'] # Cargamos el tiempo como primera columna
-            for i in range(TamD):
-                if DSave[i] == 1:
-                    headers.append(Nombres[i])
-            regLog('Cabecera a escribir: ' + str(headers))
-            writer.writerow(headers)
+            tiempo = actualizarTiempo()
+            if serialOperativo:
+                regLog('Solicitando LOOP: ')
+                ser.write(b'\n')
+                ser.write(b'\n')
+                sleep(0.1)
+                ser.write(b'LOOP 1') 
+                x = ser.read(100)          # read 99 bytes
+                regLog('Lectura: ')
+                regLog(x)
 
-        writer = csv.writer(open(fileName, 'a'))
-        #regLog('Datos a escribir: ' + str(Datos))
-        writer.writerow(Datos)
-        regLog('Datos Guardados')
+                # Creamos sistema de archivos
+                ruta = '/home/pi/allSky/davisLog/A' + str(tiempo[0]) + 'M' + "%02d"%tiempo[1] + '/'
+                ensure_dir(ruta)
+
+                # Se carga el tiempo
+                nombreArchivo = 'DatosEstacion' + str(tiempo[0]) + '-' + "%02d"%tiempo[1] + '-' + "%02d"%tiempo[2] 
+                tiempoStr = str(tiempo[0]) + ':' + "%02d"%tiempo[1] + ':' + "%02d"%tiempo[2]  + '-' + "%02d"%tiempo[3] + ':' + "%02d"%tiempo[4] + ':' + "%02d"%tiempo[5] 
+                regLog("nCaptura... " + ruta + " T: " + tiempoStr)
+
+                #Procesamos los datos Capturados
+                #regLog('Procesando Datos: ')
+                #regLog('# Datos Capturados' + str(len(x)))
+                #xe = x.encode('ASCII') 
+                Datos = [tiempoStr]     # Cargamos el tiempo como primera columna
+                if len(x) > 99:
+                    for i in range(TamD):
+                        aux = ''
+                        #regLog(Nombres[i] + ' Save:' +  str(DSave[i]) + ' * [' + str(DFact[i])+ ']')
+                        if i<4:
+                            aux = x[i] 
+                        if Dsize[i] < 2:
+                            aux = str(ord(x[Doff[i]]))
+                        else:
+                            aux = str(mix2bytes(x,Doff[i]))
+                        #regLog(aux)
+                        # Agregamos Datos a salida
+                        if DSave[i] == 1:
+                            Datos.append(aux)
+                else:
+                    regLog('Problema Captura')
+                
+
+                #Guardamos los datos Capturados
+                fileName = ruta + nombreArchivo + '.csv'
+                try:
+                    #regLog('Abriendo archivo...' + fileName)
+                    open(fileName, 'rb')
+                except:
+                    # Archivo no existe, lo creamos
+                    print('Error apertura... Creando archivo')
+                    writer = csv.writer(open(fileName, 'w'))
+                    # Cargamos nombres headers
+                    headers = ['Tiempo Sistema'] # Cargamos el tiempo como primera columna
+                    for i in range(TamD):
+                        if DSave[i] == 1:
+                            headers.append(Nombres[i])
+                    regLog('Cabecera a escribir: ' + str(headers))
+                    writer.writerow(headers)
+
+                writer = csv.writer(open(fileName, 'a'))
+                #regLog('Datos a escribir: ' + str(Datos))
+                writer.writerow(Datos)
+                regLog('Datos Guardados')
+            else:
+                # inicializacion puerto Serial
+                regLog('Iniciado Puerto... ' + puertoSerial)
+                try:
+                    ser = serial.Serial(puertoSerial, 19200, timeout=5)
+                    print(ser.name)
+                    serialOperativo = True;
+                    regLog('Iniciado')
+                except Exception as e:
+                    serialOperativo = False;
+                    regLog('Error iniciando'+ str(e.message) + ' Argumentos: ' + str(e.args))
+                    
+        except Exception as e:
+            regLog('Error Scrip Estacion: '+ str(e.message) + ' Argumentos: ' + str(e.args))
+
         # esperamos para realizar la proxima solicitud
         sleep(5)
 
@@ -209,6 +224,9 @@ te = threading.Thread(target=capturaEstacion)
 threads.append(te)
 te.start()
 
+
+
+###################################### Codigo principal ##################################################
 try:
     
     regLog("Reiniciando EasyCap...")
@@ -260,106 +278,108 @@ try:
 
     ###################################### Programa principal ##################################################
     while(1):   
+        try:
+            tiempo = actualizarTiempo()
+            regLog("Tsistema: " + str(tiempo))
 
-        tiempo = actualizarTiempo()
-        regLog("Tsistema: " + str(tiempo))
+            # Capturamos imagenes cada x tiempo
+            if esperar: 
+                regLog("Esperando... " + str(tencap) + ' Segundos')
+                sleep(tencap)       # dormimos el resto de tiempo hasta timeEntreF
+            else: 
+                esperar = True      # activamos nuevamente la espera
+            
+            # Empiezo nueva captura 
+            GPIO.output(led_verd,GPIO.LOW)
 
-        # Capturamos imagenes cada x tiempo
-        if esperar: 
-            regLog("Esperando... " + str(tencap) + ' Segundos')
-            sleep(tencap)       # dormimos el resto de tiempo hasta timeEntreF
-        else: 
-            esperar = True      # activamos nuevamente la espera
-        
-        # Empiezo nueva captura 
-        GPIO.output(led_verd,GPIO.LOW)
+            # Creamos sistema de archivos
+            ruta = '/media/pi/4D59-20AF/fotosCieloAllSky/A' + str(tiempo[0]) + 'M' + "%02d"%tiempo[1] + 'D' + "%02d"%tiempo[2] + '/' 
+            #ruta = '/home/pi/Desktop/fotosCieloAllSky/A' + str(tiempo[0]) + 'M' + "%02d"%tiempo[1] + 'D' + "%02d"%tiempo[2] + '/' 
+            ensure_dir(ruta)
 
-        # Creamos sistema de archivos
-        #ruta = '/media/pi/4D59-20AF/fotosCieloAllSky/A' + str(tiempo[0]) + 'M' + "%02d"%tiempo[1] + 'D' + "%02d"%tiempo[2] + '/' 
-        ruta = '/home/pi/Desktop/fotosCieloAllSky/A' + str(tiempo[0]) + 'M' + "%02d"%tiempo[1] + 'D' + "%02d"%tiempo[2] + '/' 
-        ensure_dir(ruta)
+            # Se carga el tiempo
+            tiempoStr = str(tiempo[0]) + '-' + "%02d"%tiempo[1] + '-' + "%02d"%tiempo[2] + '-' + "%02d"%tiempo[3]+ '-' + "%02d"%tiempo[4]
+            regLog("nCaptura... " + ruta + " T: " + tiempoStr)
 
-        # Se carga el tiempo
-        tiempoStr = str(tiempo[0]) + '-' + "%02d"%tiempo[1] + '-' + "%02d"%tiempo[2] + '-' + "%02d"%tiempo[3]+ '-' + "%02d"%tiempo[4]
-        regLog("nCaptura... " + ruta + " T: " + tiempoStr)
+            # Capturamos la lista de archivos antes de capturar
+            listaOld = os.listdir(ruta) # Dir is your directory path
+            number_filesOld = len(listaOld) # Le sumamos 1 para garantizar que se guardaron almenos 2 archivos
+            
+            # Iniciamos VLC
+            GPIO.output(led_amar,GPIO.HIGH)
+            regLog("Iniciando VLC... ")
+            os.system("vlc v4l2:///dev/video" + str(videoIn) + " :v4l2-standard= :live-caching=3000 --scene-path=" + str(ruta) + " --scene-prefix=" + tiempoStr + "-C" + str(cont) + "_ &")
 
-        # Capturamos la lista de archivos antes de capturar
-        listaOld = os.listdir(ruta) # Dir is your directory path
-        number_filesOld = len(listaOld) # Le sumamos 1 para garantizar que se guardaron almenos 2 archivos
-        
-        # Iniciamos VLC
-        GPIO.output(led_amar,GPIO.HIGH)
-        regLog("Iniciando VLC... ")
-        os.system("vlc v4l2:///dev/video" + str(videoIn) + " :v4l2-standard= :live-caching=3000 --scene-path=" + str(ruta) + " --scene-prefix=" + tiempoStr + "-C" + str(cont) + "_ &")
+            # Esperamos que capture un par de escenas
+            regLog("Capturando... " + str(tcap) + ' Segundos')
+            sleep(tcap)		#dormimos el resto de tiempo hasta timeEntreF
 
-        # Esperamos que capture un par de escenas
-        regLog("Capturando... " + str(tcap) + ' Segundos')
-        sleep(tcap)		#dormimos el resto de tiempo hasta timeEntreF
+            # Cerramos VLC
+            os.system("sudo killall vlc")
+            GPIO.output(led_amar,GPIO.LOW)
+            sleep(2) # Esperamos unos segundos que cierre
+            
+            # reiniciamos indicadores
+            GPIO.output(led_rojo,GPIO.LOW)
 
-        # Cerramos VLC
-        os.system("sudo killall vlc")
-        GPIO.output(led_amar,GPIO.LOW)
-        sleep(2) # Esperamos unos segundos que cierre
-        
-        # reiniciamos indicadores
-        GPIO.output(led_rojo,GPIO.LOW)
+            # Actualizamos el contador de captura
+            cont = cont + 1
+            file = open(rutaCon,"w") 
+            file.write(str(cont)) 
+            file.close() 
 
-        # Actualizamos el contador de captura
-        cont = cont + 1
-        file = open(rutaCon,"w") 
-        file.write(str(cont)) 
-        file.close() 
+            ## verificamos que este guardando si no cambiamos puerto de video y reintentamos de inmediato
+            # tomamos la primera lista de archivos creados para remover los vacios!
+            lista = os.listdir(ruta) # dir is your directory path
+            number_files = len(lista)
 
-        ## verificamos que este guardando si no cambiamos puerto de video y reintentamos de inmediato
-        # tomamos la primera lista de archivos creados para remover los vacios!
-        lista = os.listdir(ruta) # dir is your directory path
-        number_files = len(lista)
+            # verificamos tamano archivos generados, removemos los vacios
+            for i in lista:
+                statinfo = os.stat(ruta + "/" + i)
+                tamFile = statinfo.st_size
 
-        # verificamos tamano archivos generados, removemos los vacios
-        for i in lista:
-            statinfo = os.stat(ruta + "/" + i)
-            tamFile = statinfo.st_size
+                # Removemos los Vacios
+                if tamFile<10000:
+                    os.system("sudo rm " + ruta + "/" + i)
 
-            # Removemos los Vacios
-            if tamFile<10000:
-                os.system("sudo rm " + ruta + "/" + i)
+            # Cargamos de nuevo la lista de archivos creados aparentemente (tamano) validos
+            lista = os.listdir(ruta) # dir is your directory path
+            number_files = len(lista)
 
-        # Cargamos de nuevo la lista de archivos creados aparentemente (tamano) validos
-        lista = os.listdir(ruta) # dir is your directory path
-        number_files = len(lista)
+            regLog("Archivos nuevos detectados... " + str(number_files - number_filesOld))
 
-        regLog("Archivos nuevos detectados... " + str(number_files - number_filesOld))
-
-        if number_files < (number_filesOld + 1):
-            videoIn = (videoIn + 1) % maxVideo
-            regLog("Falla video, probando otro puerto: " + str(videoIn))
-            GPIO.output(led_rojo,GPIO.HIGH)
-            cont = cont - 1     # Reiniciamos la captura anterior
-            esperar = False     # Intentamos capturar de inmediato
-            reiniciarE = reiniciarE + 1
-
-
-            if reiniciarE > 3:
+            if number_files < (number_filesOld + 1):
+                videoIn = (videoIn + 1) % maxVideo
+                regLog("Falla video, probando otro puerto: " + str(videoIn))
                 GPIO.output(led_rojo,GPIO.HIGH)
-                regLog("Reiniciando EasyCap...")
-                GPIO.output(ena_easy,GPIO.LOW) # Des-activamos capturador
-                sleep(10)
-                GPIO.output(ena_easy,GPIO.HIGH) # Activamos capturador
-                #os.system("sudo reboot")
+                cont = cont - 1     # Reiniciamos la captura anterior
+                esperar = False     # Intentamos capturar de inmediato
+                reiniciarE = reiniciarE + 1
+
+
+                if reiniciarE > 3:
+                    GPIO.output(led_rojo,GPIO.HIGH)
+                    regLog("Reiniciando EasyCap...")
+                    GPIO.output(ena_easy,GPIO.LOW) # Des-activamos capturador
+                    sleep(10)
+                    GPIO.output(ena_easy,GPIO.HIGH) # Activamos capturador
+                    #os.system("sudo reboot")
+                    reiniciarE = 0
+
+                    
+
+            else: # Imagenes generadas correctamente?
+                GPIO.output(led_verd,GPIO.HIGH)
                 reiniciarE = 0
 
-                
-
-        else: # Imagenes generadas correctamente?
-            GPIO.output(led_verd,GPIO.HIGH)
-            reiniciarE = 0
-
-        # Cerramos VLC
-        print ("cerrando VLC... ")
-        os.system("sudo killall vlc")
+            # Cerramos VLC
+            print ("cerrando VLC... ")
+            os.system("sudo killall vlc")
+        except Exception as e:
+            regLog('Error Scrip Captura: '+ str(e.message) + ' Argumentos: ' + str(e.args))
 
 
-        
+###################################### Fin codigo
 except KeyError:
     GPIO.cleanup()
     quit()  
