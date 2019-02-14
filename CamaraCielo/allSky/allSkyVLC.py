@@ -49,7 +49,7 @@ GPIO.setup(led_amar, GPIO.OUT)
 GPIO.setup(led_verd, GPIO.OUT)
 GPIO.setup(ena_easy, GPIO.OUT)
 
-puertoSerial = '/dev/ttyUSB1'
+puertoSerial = '/dev/ttyUSB0'
 
 ###################################### Funciones ##################################################
 def mix2bytes(datosE,pos):
@@ -158,11 +158,11 @@ def capturaEstacion():
                 Datos = [tiempoStr]     # Cargamos el tiempo como primera columna
                 if len(x) > 99:
                     for i in range(TamD):
-                        aux = ''
+                        aux = '0'
                         #regLog(Nombres[i] + ' Save:' +  str(DSave[i]) + ' * [' + str(DFact[i])+ ']')
                         if i<4:
                             aux = x[i] 
-                        if Dsize[i] < 2:
+                        elif Dsize[i] < 2:
                             aux = str(ord(x[Doff[i]]))
                         else:
                             aux = str(mix2bytes(x,Doff[i]))
