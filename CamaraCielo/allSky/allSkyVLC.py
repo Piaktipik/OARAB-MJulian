@@ -50,6 +50,7 @@ GPIO.setup(led_verd, GPIO.OUT)
 GPIO.setup(ena_easy, GPIO.OUT)
 
 puertoSerial = '/dev/ttyUSB0'
+gpsInstalado = True
 
 ###################################### Funciones ##################################################
 def mix2bytes(datosE,pos):
@@ -83,11 +84,9 @@ def actualizarTiempo():
         if tiempoS[i] < tiempoG[i]: # tiempo sistema menor que gps, actualizamos
             tiempo = tiempoG
             return tiempo
-            break
         if tiempoS[i] > tiempoG[i]: # tiempo sistema mayor que gps, actualizamos
             tiempo = tiempoS
             return tiempo
-            break
     return tiempoS
 
 # hilo de captura tiempo GPS
@@ -122,16 +121,24 @@ def worker():
             quit()
         except StopIteration:
             session = None
-            print "GPSD has terminated"
+            regLog("GPSD has terminated")
     return
 
 # hilo Captura datos Estacion
 def capturaEstacion():
     ###################################### Guardamos Datos Estacion
     serialOperativo = False
+    ultimoMinuto=0
+    tiempo = actualizarTiempo()
+    
     while(1):
         try:
-            tiempo = actualizarTiempo()
+            
+            # si ultimo minuto fue capturado, esperamos el while
+            while ultimoMinuto == tiempo[4]:
+                tiempo = actualizarTiempo()
+                sleep(1)
+            
             if serialOperativo:
                 regLog('Solicitando LOOP: ')
                 ser.write(b'\n')
@@ -148,7 +155,7 @@ def capturaEstacion():
 
                 # Se carga el tiempo
                 nombreArchivo = 'DatosEstacion' + str(tiempo[0]) + '-' + "%02d"%tiempo[1] + '-' + "%02d"%tiempo[2] 
-                tiempoStr = str(tiempo[0]) + ':' + "%02d"%tiempo[1] + ':' + "%02d"%tiempo[2]  + '-' + "%02d"%tiempo[3] + ':' + "%02d"%tiempo[4] + ':' + "%02d"%tiempo[5] 
+                tiempoStr = str(tiempo[0]) + '-' + "%02d"%tiempo[1] + '-' + "%02d"%tiempo[2]  + ' ' + "%02d"%tiempo[3] + ':' + "%02d"%tiempo[4] + ':' + "%02d"%tiempo[5] 
                 regLog("nCaptura... " + ruta + " T: " + tiempoStr)
 
                 #Procesamos los datos Capturados
@@ -157,6 +164,9 @@ def capturaEstacion():
                 #xe = x.encode('ASCII') 
                 Datos = [tiempoStr]     # Cargamos el tiempo como primera columna
                 if len(x) > 99:
+                    if(x[1]!='L'):      # Si el paquete llega con problema lo descartamos
+                        continue
+                        
                     for i in range(TamD):
                         aux = '0'
                         #regLog(Nombres[i] + ' Save:' +  str(DSave[i]) + ' * [' + str(DFact[i])+ ']')
@@ -171,7 +181,9 @@ def capturaEstacion():
                         if DSave[i] == 1:
                             Datos.append(aux)
                 else:
-                    regLog('Problema Captura')
+                    regLog('Captura Incompleta... Reintentando')
+                    if serialOperativo:
+                        continue
                 
 
                 #Guardamos los datos Capturados
@@ -195,23 +207,29 @@ def capturaEstacion():
                 #regLog('Datos a escribir: ' + str(Datos))
                 writer.writerow(Datos)
                 regLog('Datos Guardados')
+                # indicamos que ya se guardo datos para este minuto
+                ultimoMinuto = tiempo[4]
+                
             else:
                 # inicializacion puerto Serial
                 regLog('Iniciado Puerto... ' + puertoSerial)
                 try:
+                    if not gpsInstalado:
+                        # forzamos la detencion del modulo del GPS que ocupa el puerto serial de la estacion
+                        os.system(''' pgrep gpsd | awk '{system("sudo kill "$1)}' ''')
                     ser = serial.Serial(puertoSerial, 19200, timeout=5)
                     print(ser.name)
-                    serialOperativo = True;
+                    serialOperativo = True
                     regLog('Iniciado')
                 except Exception as e:
-                    serialOperativo = False;
+                    serialOperativo = False
                     regLog('Error iniciando'+ str(e.message) + ' Argumentos: ' + str(e.args))
                     
         except Exception as e:
             regLog('Error Scrip Estacion: '+ str(e.message) + ' Argumentos: ' + str(e.args))
 
         # esperamos para realizar la proxima solicitud
-        sleep(5)
+        #sleep(5)
 
 # iniciamos hilo captura tiempo GPS
 threads = list()
